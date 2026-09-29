@@ -1,0 +1,92 @@
+Crane Control Specification
+
+This project defines software and hardware specifications for the control of a crane system.
+The element controlled is the Payload Winch which raises and lowers the payload of the crane system.
+
+Hardware
+    Arduino Pro Mini 5v 16Mhz
+    ULSwitch  - Digital Input, Upper Limit Switch - active Low Hall Effect Sensor
+    KeyPhasor - Digital Input, Winch rotation     - active Low Hall Effect Sensor
+    Winch     - Servo Output                      - continupus rotation winch servo
+    Lights    - Digital Output, crane lights      - active Low LED Control
+    SDA       - I2C Data Line                     - see separate note on I2C interface
+    SCL       - I2C Clock Line                    - see separate note on I2C interface
+    Servo0v   - Digital Output, servo power       - active High output to supply servo power after initialisation
+
+Electrical
+    Electrical connection to the crane is via a 4 wire slip ring
+    +5v
+    0v
+    SDA (I2C data line)
+    SCL (I2C clock line)
+
+
+Servo Control
+    The Servo Control section manages the power and operation of the Winch servo.
+    The Servo has three preset (defined) demands; Stop, Raise, and Lower.
+    
+I2C Interface
+    The I2C interface is used for communication between the crane control system and other I2C-enabled devices.
+    The SDA line carries the data, and the SCL line carries the clock signal.
+    Both lines require pull-up resistors to function correctly.
+
+    The I2C interface carries a command word from the master device to control the crane system and provides a status word back to the master device.
+
+    The command word can take the following values:
+   
+        0x00    Disable all movement (this is the default powerup value)
+        0x01    Move Winch Payload to Position 1
+        0x02    Move Winch Payload to Position 2
+        0x03    Move Winch Payload to Position 3
+        0x04    Move Winch Payload to Upper Limit
+
+    The status word returned by the crane system can take the following values:
+        0x00    Winch Movement Disabled
+        0x01    Winch Payload at Position 1
+        0x02    Winch Payload at Position 2
+        0x03    Winch Payload at Position 3
+        0x04    Winch Payload at Upper Limit
+        0x05    Winch Payload Moving
+        0x06    Not initialised
+        0x07    Error Condition
+
+Control Logic - PowerUp
+    Enable - throughout PowerUp periodically check the state of the I2C interface and suspend operation if Disable all movement is demanded, update the status of the I2C status word accordingly
+    
+    Set I2C Status to 'Not initialised' (0x04)
+
+    Servo initialisation
+        Set servo demand to 'Stop'
+        Activate the Servo0v output to supply power to the Winch servo
+
+    Set the Lights to Pattern 0
+
+    Raise Winch payload
+        The Winch must be raised (servo demand set to Raise) until the ULSwitch indicates that the payload is fully raised
+        A pulseCount should be maintained of the KeyPhasor pulses and if no pulses are detected within a certain timeframe then this is an error (error 1)
+        Once at the Upper Limit
+            Clear the pulseCount (used to record the payload position)
+            Set the Lights to Pattern 1
+            Set I2C Status to 'Winch Payload at Upper Limit' (0x04)
+            Move to the Main Loop
+
+Control Logic - Main Loop
+
+    Control the Winch
+        Monitor I2C demand word
+            If the derived position of the winch payload (the pulseCount) differs from the I2C demand then activate the Winch to move the payload to the demanded position
+            
+            If demand is 'Move to Position n' or 'Lower to Home'
+                Activate the Winch Servo to move the payload in the appropriate direction and track the pulseCount until it reaches the desired position (as determined by the KeyPhasor count)
+
+                Stop the Winch Servo, update the I2C Status to reflect the new position 
+
+Control Logic - Lights
+    At PowerUp the lights are turned off
+
+    Following successful initialisation, the lights will operate according to the preset blink rate and brightness levels (pattern 0).
+        The Lights have two brightness levels: low and high, controlled by preset PWM duty cycles.
+        There is an overall blink rate set to 0.2 Hz; with the brightness set to Low for 95% of the time and High for 5% of the time.
+    
+    If an error occurs (see Error 1) the lights will flash in a specific error pattern with a 50% duty cycle.
+
