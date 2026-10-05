@@ -38,12 +38,13 @@ struct GpioConfig {
     uint8_t servoPower;
     uint8_t i2cAddress;
 
+    // Create a default GPIO configuration for the crane controller.
     GpioConfig()
-        : upperLimitSwitch(2),
+        : upperLimitSwitch(4),
           keyPhasor(3),
-          winchServo(9),
-          lights(10),
-          servoPower(11),
+          winchServo(2),
+          lights(6),
+          servoPower(5),
           i2cAddress(0x40) {
     }
 
@@ -87,13 +88,13 @@ private:
     static CraneController* interruptInstance_;
     static constexpr int32_t kTargetPulseCountUpperLimit = 0;
     static constexpr int32_t kPosition1PulseCount = 10;
-    static constexpr int32_t kPosition2PulseCount = 20;
-    static constexpr int32_t kPosition3PulseCount = 30;
+    static constexpr int32_t kPosition2PulseCount = 30;
+    static constexpr int32_t kPosition3PulseCount = 43;
     static constexpr int32_t kMaxPulseCount = 300;
-    static constexpr int32_t ktargetKeyPhasorGap =1000;
+    static constexpr int32_t ktargetKeyPhasorGap =1400;
     static constexpr uint16_t kServoStopUs = 1515;
-    static constexpr uint16_t kServoLowerUs = 1565;
-    static constexpr uint16_t kServoRaiseUs = 1478;
+    static constexpr uint16_t kServoLowerUs = 1551;
+    static constexpr uint16_t kServoRaiseUs = 1489;
     static constexpr uint32_t kBlinkPeriodMs = 5000U;
     static constexpr uint32_t kHighDutyMs = 250U;
 
@@ -120,6 +121,7 @@ private:
     void setServoPower(bool enabled);
     void setLights(bool active);
     void updateLights();
+    void updateDebugLed();
     void initialisePowerUp();
     void moveToDemand();
     void resolveDemandFromCommand();

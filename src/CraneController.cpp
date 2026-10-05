@@ -7,9 +7,9 @@ CraneController::CraneController()
       servo_(),
       command_(CraneCommand::DisableAllMovement),
       status_(CraneStatus::NotInitialised),
-    targetPosition_(CraneTargetPosition::Home),
-      targetPulseCount_(0),
+      targetPosition_(CraneTargetPosition::Home),
       pulseCount_(0),
+      targetPulseCount_(0),
       maxPulseCount_(0),
       initialised_(false),
       errorCondition_(false),
@@ -23,9 +23,9 @@ CraneController::CraneController(const GpioConfig& gpioConfig)
       servo_(),
       command_(CraneCommand::DisableAllMovement),
       status_(CraneStatus::NotInitialised),
-    targetPosition_(CraneTargetPosition::Home),
-      targetPulseCount_(0),
+      targetPosition_(CraneTargetPosition::Home),
       pulseCount_(0),
+      targetPulseCount_(0),
       maxPulseCount_(0),
       initialised_(false),
       errorCondition_(false),
@@ -49,6 +49,7 @@ void CraneController::begin() {
 }
 
 void CraneController::update() {
+    updateDebugLed();
 
     if (!initialised_) {
 Serial.println("update::initialising power-up");
@@ -185,6 +186,7 @@ void CraneController::configurePins() {
     pinMode(gpioConfig_.keyPhasor, INPUT_PULLUP);
     pinMode(gpioConfig_.lights, OUTPUT);
     pinMode(gpioConfig_.servoPower, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
     attachInterrupt(digitalPinToInterrupt(gpioConfig_.keyPhasor), keyPhasorIsr, FALLING);
     digitalWrite(gpioConfig_.servoPower, LOW);
     digitalWrite(gpioConfig_.lights, HIGH);
@@ -242,10 +244,11 @@ void CraneController::updateLights() {
 
 void CraneController::initialisePowerUp() {
     setStatus(CraneStatus::NotInitialised);
+    updateDebugLed();
     setServoPower(true);
     stopWinch();
     setLights(false);
-
+    Serial.println("::initialisePowerUp");
     if (upperLimitSwitchReached()) {
         pulseCount_ = 0;
 Serial.println("Initialised at upper limit");
@@ -261,8 +264,13 @@ Serial.println("Initialised at upper limit");
     servoDemandUs_ = kServoRaiseUs;
 
     while(!upperLimitSwitchReached()) {
+        updateDebugLed();
         servo_.writeMicroseconds(servoDemandUs_);
+
+Serial.println(servoDemandUs_);
+
         if(pulseCount_ == pulseSnapShot) {
+            Serial.println("-");
             if (millis() - startTime >= 2000U) {
                 Serial.println("Error: Motor timeout during power-up initialisation");
                 break;
@@ -422,6 +430,12 @@ void CraneController::recordPulse() {
     }
     lastPulseTimestampMs_ = millis();
     Serial.println(servoDemandUs_);
+}
+
+// Inputs are active-low (INPUT_PULLUP).
+void CraneController::updateDebugLed() {
+    const bool active = digitalRead(gpioConfig_.keyPhasor) == LOW || upperLimitSwitchReached();
+    digitalWrite(LED_BUILTIN, active ? HIGH : LOW);
 }
 
 bool CraneController::upperLimitSwitchReached() const {

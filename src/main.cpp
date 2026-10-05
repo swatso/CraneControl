@@ -3,15 +3,18 @@
 
 #include "CraneController.h"
 
+// Instantiate the crane controller with the specified GPIO configuration.
 namespace {
-const GpioConfig kCraneGpioConfig = GpioConfig{
-    2U,
+/*const GpioConfig kCraneGpioConfig = GpioConfig{
+    4U,
     3U,
-    9U,
-    10U,
-    11U,
+    2U,
+    6U,
+    5U,
     0x40U
 };
+*/
+const GpioConfig kCraneGpioConfig = GpioConfig();
 
 CraneController craneController(kCraneGpioConfig);
 
@@ -37,6 +40,7 @@ void setup() {
     Wire.begin(kCraneGpioConfig.i2cAddress);
     Wire.onReceive(onI2cReceive);
     Wire.onRequest(onI2cRequest);
+    Serial.println("Wire interface configured.");
     craneController.begin();
     Serial.println("Setup complete.");
 
